@@ -1,9 +1,9 @@
 name: Daily Scrape
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 1 * * *"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,27 +12,25 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scraper
-        run: python -c "
-from scripts.orchestrator import Orchestrator
-from scripts.generate_report import generate_report
-Orchestrator().run()
-generate_report()
-"
+      - name: Run scraper and generate report
+        run: |
+          python -c "
+          from scripts.orchestrator import Orchestrator
+          from scripts.generate_report import generate_report
+          Orchestrator().run()
+          generate_report()
+          "
 
-      - name: Commit and push if changed
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
