@@ -6,8 +6,6 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from scripts.parser_base import BaseParser
 from scripts.models import BiddingItem
-from scripts.fetcher import Fetcher
-
 
 class ZjZfcgParser(BaseParser):
     """zfcg.czt.zj.gov.cn 解析器."""
