@@ -1,0 +1,59 @@
+name: Daily Scrape
+
+on:
+  schedule:
+    # Beijing time every day at 9:00 (UTC 1:00)
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        run: python -c "
+from scripts.orchestrator import Orchestrator
+from scripts.generate_report import generate_report
+Orchestrator().run()
+generate_report()
+"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/results.json docs/index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "data: auto-update $(date +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
