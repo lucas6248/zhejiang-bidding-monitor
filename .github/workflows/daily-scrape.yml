@@ -22,6 +22,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run scraper and generate report
+        env:
+          BING_API_KEY: ${{ secrets.BING_API_KEY }}
         run: |
           python -c "
           from scripts.orchestrator import Orchestrator
