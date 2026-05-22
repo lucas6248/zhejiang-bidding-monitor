@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from scripts.parser_base import BaseParser, ParseError
 from scripts.models import BiddingItem
-from scripts.fetcher import Fetcher
 
 
 class ZjGgzyParser(BaseParser):
