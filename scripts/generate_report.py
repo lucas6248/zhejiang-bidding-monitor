@@ -1,0 +1,141 @@
+"""生成 docs/index.html 报告页面."""
+
+from datetime import datetime
+from pathlib import Path
+from scripts.storage import Storage
+
+DOCS_DIR = Path(__file__).parent.parent / "docs"
+OUTPUT_FILE = DOCS_DIR / "index.html"
+
+
+def generate_report():
+    """生成 HTML 报告."""
+    storage = Storage()
+    items = storage.get_recent(days=7)
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    html = _build_html(items)
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Report generated: {OUTPUT_FILE} ({len(items)} items)")
+
+
+def _build_html(items) -> str:
+    rows_html = ""
+    for i, item in enumerate(items):
+        d = item.to_dict()
+        rows_html += f"""
+        <tr>
+            <td>{i + 1}</td>
+            <td><a href="{_esc(d['source_url'])}" target="_blank" rel="noopener">{_esc(d['project_name'])}</a></td>
+            <td>{_esc(d['region'])}</td>
+            <td>{_esc(d['source_platform'])}</td>
+            <td>{_esc(d['publish_date'])}</td>
+            <td>{_esc(d['deadline'])}</td>
+            <td>{_esc(d['budget'])}</td>
+            <td>{_esc(d['specs'])}</td>
+        </tr>"""
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浙江省球墨铸铁管招投标信息</title>
+<style>
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; }}
+.header {{ background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; padding: 24px 20px; text-align: center; }}
+.header h1 {{ font-size: 1.4rem; margin-bottom: 6px; }}
+.header .update-time {{ font-size: 0.85rem; opacity: 0.8; }}
+.toolbar {{ max-width: 1200px; margin: 16px auto; padding: 0 16px; display: flex; gap: 12px; flex-wrap: wrap; }}
+.toolbar select, .toolbar input {{ padding: 8px 12px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 0.9rem; }}
+.toolbar input {{ flex: 1; min-width: 200px; }}
+.table-wrap {{ max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; overflow-x: auto; }}
+table {{ width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.08); }}
+th {{ background: #2c3e50; color: #fff; padding: 12px 10px; font-size: 0.85rem; text-align: left; white-space: nowrap; cursor: pointer; }}
+th:hover {{ background: #34495e; }}
+td {{ padding: 10px; border-bottom: 1px solid #eee; font-size: 0.85rem; }}
+tr:hover td {{ background: #f0f7ff; }}
+a {{ color: #2980b9; text-decoration: none; }}
+a:hover {{ text-decoration: underline; }}
+.empty {{ text-align: center; padding: 60px 20px; color: #999; }}
+.footer {{ text-align: center; padding: 16px; color: #999; font-size: 0.8rem; }}
+@media (max-width: 768px) {{
+    .header h1 {{ font-size: 1.1rem; }}
+    th, td {{ padding: 8px 6px; font-size: 0.78rem; }}
+}}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>浙江省球墨铸铁管招投标信息</h1>
+    <div class="update-time">最后更新: {now} | 近7天共 {len(items)} 条</div>
+</div>
+
+<div class="toolbar">
+    <select id="regionFilter" onchange="filterTable()">
+        <option value="">全部地区</option>
+        <option>杭州</option><option>宁波</option><option>温州</option>
+        <option>嘉兴</option><option>湖州</option><option>绍兴</option>
+        <option>金华</option><option>衢州</option><option>舟山</option>
+        <option>台州</option><option>丽水</option>
+    </select>
+    <select id="platformFilter" onchange="filterTable()">
+        <option value="">全部平台</option>
+    </select>
+    <input type="text" id="searchBox" placeholder="搜索项目名称..." oninput="filterTable()">
+</div>
+
+<div class="table-wrap">
+    {"<table id='dataTable'><thead><tr><th onclick='sortTable(0)'>#</th><th onclick='sortTable(1)'>项目名称</th><th onclick='sortTable(2)'>地区</th><th onclick='sortTable(3)'>发布平台</th><th onclick='sortTable(4)'>发布日期</th><th onclick='sortTable(5)'>截止时间</th><th onclick='sortTable(6)'>预算</th><th onclick='sortTable(7)'>规格数量</th></tr></thead><tbody>" + rows_html + "</tbody></table>" if items else "<div class='empty'>暂无最近7天的招投标信息</div>"}
+</div>
+
+<div class="footer">数据来源：浙江省公共资源交易服务平台、浙江政府采购网等公开平台 | 每日自动更新</div>
+
+<script>
+var allRows = Array.from(document.querySelectorAll("#dataTable tbody tr"));
+var platforms = new Set(allRows.map(r => r.cells[3]?.textContent || ""));
+var pfSelect = document.getElementById("platformFilter");
+platforms.forEach(p => {{ var o = document.createElement("option"); o.value = p; o.textContent = p; pfSelect.appendChild(o); }});
+
+function filterTable() {{
+    var region = document.getElementById("regionFilter").value;
+    var platform = document.getElementById("platformFilter").value;
+    var keyword = document.getElementById("searchBox").value.toLowerCase();
+    allRows.forEach(row => {{
+        var show = true;
+        if (region && !row.cells[2].textContent.includes(region)) show = false;
+        if (platform && !row.cells[3].textContent.includes(platform)) show = false;
+        if (keyword && !row.cells[1].textContent.toLowerCase().includes(keyword)) show = false;
+        row.style.display = show ? "" : "none";
+    }});
+}}
+
+function sortTable(col) {{
+    var tbody = document.querySelector("#dataTable tbody");
+    var rows = Array.from(tbody.querySelectorAll("tr"));
+    var asc = tbody.dataset.sortCol == col ? !(tbody.dataset.sortAsc == "true") : true;
+    rows.sort((a, b) => {{
+        var va = a.cells[col].textContent.trim(), vb = b.cells[col].textContent.trim();
+        return va.localeCompare(vb, "zh-CN") * (asc ? 1 : -1);
+    }});
+    rows.forEach(r => tbody.appendChild(r));
+    tbody.dataset.sortCol = col;
+    tbody.dataset.sortAsc = asc;
+}}
+</script>
+
+</body>
+</html>"""
+
+
+def _esc(s: str) -> str:
+    """HTML 转义."""
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+if __name__ == "__main__":
+    generate_report()
